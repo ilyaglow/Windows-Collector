@@ -4,15 +4,33 @@ package windowscollector
 
 import (
 	"fmt"
-	mft "github.com/Go-Forensics/MFT-Parser"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"sync"
+
+	mft "github.com/Go-Forensics/MFT-Parser"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/windows/registry"
 )
+
+func resolveEnv(exportList ListOfFilesToExport) error {
+	var err error
+	for i := range exportList {
+		exportList[i].FullPath, err = registry.ExpandString(exportList[i].FullPath)
+		if err != nil {
+			return fmt.Errorf("resolving environment variables from %s: %w", exportList[i].FullPath, err)
+		}
+	}
+	return nil
+}
 
 // Collect will find and collect target files into a format depending on the resultWriter type
 func Collect(injectedHandlerDependency handler, exportList ListOfFilesToExport, resultWriter resultWriter) (err error) {
 	// volumeHandler as an arg is a dependency injection
+	err = resolveEnv(exportList)
+	if err != nil {
+		return
+	}
+
 	log.Debugf("Attempting to acquire the following files %+v", exportList)
 	volumesOfInterest, err := identifyVolumesOfInterest(&exportList)
 	if err != nil {

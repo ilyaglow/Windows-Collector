@@ -5,14 +5,15 @@ package windowscollector
 import (
 	"errors"
 	"fmt"
-	vbr "github.com/Go-Forensics/VBR-Parser"
-	log "github.com/sirupsen/logrus"
-	syscall "golang.org/x/sys/windows"
 	"io"
 	"os"
 	"regexp"
 	"strings"
 	"unicode"
+
+	vbr "github.com/Go-Forensics/VBR-Parser"
+	log "github.com/sirupsen/logrus"
+	syscall "golang.org/x/sys/windows"
 )
 
 type handler interface {
@@ -95,24 +96,18 @@ func isLetter(s string) (result bool, err error) {
 func identifyVolumesOfInterest(exportList *ListOfFilesToExport) (volumesOfInterest []string, err error) {
 	volumesOfInterest = make([]string, 0)
 	re := regexp.MustCompile(`[^:]+`)
-	for index, fileToExport := range *exportList {
+	for _, fileToExport := range *exportList {
 		volume := re.FindString(strings.ToLower(fileToExport.FullPath))
-		if volume == "%systemdrive%" {
-			systemDrive := os.Getenv("SYSTEMDRIVE")
-			volume = re.FindString(systemDrive)
-			(*exportList)[index].FullPath = strings.Replace(strings.ToLower(fileToExport.FullPath), "%systemdrive%", volume, -1)
-		} else {
-			var result bool
-			result, err = isLetter(volume)
-			if err != nil {
-				err = fmt.Errorf("isLetter() returned an error: %w", err)
-				volumesOfInterest = nil
-				return
-			} else if result == false {
-				err = fmt.Errorf("isLetter() indicated that the full path string %s does not start with a letter", fileToExport.FullPath)
-				volumesOfInterest = nil
-				return
-			}
+		var result bool
+		result, err = isLetter(volume)
+		if err != nil {
+			err = fmt.Errorf("isLetter() returned an error: %w", err)
+			volumesOfInterest = nil
+			return
+		} else if result == false {
+			err = fmt.Errorf("isLetter() indicated that the full path string %s does not start with a letter", fileToExport.FullPath)
+			volumesOfInterest = nil
+			return
 		}
 
 		isTracked := false
